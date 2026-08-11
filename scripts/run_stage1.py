@@ -15,10 +15,10 @@ from atlas.config import asset_tickers, load_yaml
 from atlas.data.fred import fetch_macro_frame
 from atlas.data.market import calculate_returns, download_adjusted_close, save_parquet
 from atlas.data.validation import checks_to_dict, validate_market_prices
+from atlas.macro.features import build_macro_features, classify_regimes
 from atlas.portfolio.baseline import equal_weight
 from atlas.signals.momentum import cross_sectional_zscore, momentum_12_1
 from atlas.signals.risk import rolling_annualized_volatility
-from atlas.macro.features import build_macro_features, classify_regimes
 
 OUTPUT = Path("data/processed")
 

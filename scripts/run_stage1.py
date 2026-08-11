@@ -22,7 +22,6 @@ from atlas.portfolio.optimizer import optimize_portfolio
 from atlas.signals.momentum import cross_sectional_zscore, momentum_12_1
 from atlas.signals.risk import rolling_annualized_volatility
 
-
 OUTPUT = Path("data/processed")
 
 

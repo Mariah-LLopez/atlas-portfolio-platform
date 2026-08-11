@@ -9,6 +9,9 @@ class OptimizationError(RuntimeError):
     """Raised when the portfolio optimizer cannot produce a valid solution."""
 
 
+NUMERICAL_TOLERANCE = 1e-6
+
+
 def _make_covariance_psd(
     covariance: pd.DataFrame,
 ) -> np.ndarray:
@@ -37,6 +40,58 @@ def _make_covariance_psd(
     )
 
 
+def _clean_weights(
+    weights: pd.Series,
+) -> pd.Series:
+    """Remove tiny numerical solver artifacts from portfolio weights."""
+
+    cleaned = weights.copy()
+
+    # Values such as -0.00000001 are numerical artifacts,
+    # not genuine short positions.
+    tiny = (
+        cleaned.abs()
+        <= NUMERICAL_TOLERANCE
+    )
+
+    cleaned.loc[tiny] = 0.0
+
+    if (
+        cleaned
+        < -NUMERICAL_TOLERANCE
+    ).any():
+        bad = cleaned[
+            cleaned
+            < -NUMERICAL_TOLERANCE
+        ]
+
+        raise OptimizationError(
+            "Optimizer returned materially negative "
+            f"weights: {bad.to_dict()}"
+        )
+
+    # Remove any remaining microscopic negatives.
+    cleaned = cleaned.clip(
+        lower=0.0
+    )
+
+    total = float(
+        cleaned.sum()
+    )
+
+    if total <= 0:
+        raise OptimizationError(
+            "Optimizer returned invalid portfolio weights."
+        )
+
+    # Restore exact 100% total after numerical cleanup.
+    cleaned = (
+        cleaned / total
+    )
+
+    return cleaned
+
+
 def optimize_portfolio(
     expected_returns: pd.Series,
     covariance: pd.DataFrame,
@@ -53,8 +108,8 @@ def optimize_portfolio(
 ) -> pd.Series:
     """Solve a constrained long-only mean-variance portfolio.
 
-    Optional previous weights allow Atlas to penalize and/or
-    constrain portfolio turnover.
+    Optional previous weights allow Atlas to penalize
+    and/or constrain portfolio turnover.
     """
 
     assets = expected_returns.index.tolist()
@@ -111,7 +166,7 @@ def optimize_portfolio(
         )
 
         raise ValueError(
-            f"Missing maximum weights for assets: "
+            "Missing maximum weights for assets: "
             f"{missing}"
         )
 
@@ -139,8 +194,10 @@ def optimize_portfolio(
     previous = None
 
     if previous_weights is not None:
-        previous = previous_weights.reindex(
-            assets
+        previous = (
+            previous_weights
+            .reindex(assets)
+            .astype(float)
         )
 
         if previous.isna().any():
@@ -157,21 +214,43 @@ def optimize_portfolio(
                 f"assets: {missing}"
             )
 
+        # Permit microscopic solver artifacts, but reject
+        # economically meaningful negative holdings.
+        if (
+            previous
+            < -NUMERICAL_TOLERANCE
+        ).any():
+            bad = previous[
+                previous
+                < -NUMERICAL_TOLERANCE
+            ]
+
+            raise ValueError(
+                "Previous weights contain materially "
+                f"negative values: {bad.to_dict()}"
+            )
+
+        previous = previous.clip(
+            lower=0.0
+        )
+
+        previous_total = float(
+            previous.sum()
+        )
+
         if not np.isclose(
-            previous.sum(),
+            previous_total,
             1.0,
-            atol=1e-6,
+            atol=NUMERICAL_TOLERANCE,
         ):
             raise ValueError(
                 "Previous weights must sum to 1."
             )
 
-        if (
-            previous < -1e-8
-        ).any():
-            raise ValueError(
-                "Previous weights cannot be negative."
-            )
+        previous = (
+            previous
+            / previous_total
+        )
 
     elif (
         max_turnover is not None
@@ -214,8 +293,9 @@ def optimize_portfolio(
     turnover_expression = None
 
     if previous is not None:
-        previous_array = previous.to_numpy(
-            dtype=float
+        previous_array = (
+            previous
+            .to_numpy(dtype=float)
         )
 
         turnover_expression = (
@@ -297,6 +377,11 @@ def optimize_portfolio(
             f"{problem.status}"
         )
 
+    if weights.value is None:
+        raise OptimizationError(
+            "Optimizer returned no portfolio weights."
+        )
+
     result = pd.Series(
         np.asarray(
             weights.value
@@ -306,8 +391,8 @@ def optimize_portfolio(
         dtype=float,
     )
 
-    result[
-        result.abs() < 1e-10
-    ] = 0.0
+    result = _clean_weights(
+        result
+    )
 
     return result

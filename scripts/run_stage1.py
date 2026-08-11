@@ -15,6 +15,8 @@ from atlas.config import asset_tickers, load_yaml
 from atlas.data.fred import fetch_macro_frame
 from atlas.data.market import calculate_returns, download_adjusted_close, save_parquet
 from atlas.data.validation import checks_to_dict, validate_market_prices
+from atlas.macro.features import build_macro_features, classify_regimes
+from atlas.macro.tilts import apply_regime_tilts
 from atlas.portfolio.baseline import equal_weight
 from atlas.signals.momentum import cross_sectional_zscore, momentum_12_1
 from atlas.signals.risk import rolling_annualized_volatility
@@ -50,6 +52,20 @@ def main() -> None:
     )
     save_parquet(macro, OUTPUT / "macro.parquet")
 
+    print("Building macro features and regimes...")
+    macro_features = build_macro_features(macro)
+    macro_regimes = classify_regimes(macro_features)
+
+    save_parquet(
+        macro_features,
+        OUTPUT / "macro_features.parquet",
+    )
+
+    save_parquet(
+        macro_regimes.to_frame(),
+        OUTPUT / "macro_regimes.parquet",
+    )
+
     print("3/7 Calculating momentum...")
     momentum = momentum_12_1(prices)
     momentum_z = cross_sectional_zscore(momentum)
@@ -73,6 +89,12 @@ def main() -> None:
         momentum_tilt=float(research["cma_momentum_tilt"]),
         periods_per_year=int(research["annualization_factor"]),
     )
+    latest_regime = macro_regimes.dropna().iloc[-1]
+
+    regime_adjusted_cma = apply_regime_tilts(
+        expected_returns,
+        latest_regime,
+    )
     covariance = annualized_covariance(
         returns,
         years=int(research["cma_history_years"]),
@@ -84,7 +106,10 @@ def main() -> None:
     )
     save_parquet(cma, OUTPUT / "cma_expected_returns.parquet")
     save_parquet(covariance, OUTPUT / "cma_covariance.parquet")
-
+    save_parquet(
+    regime_adjusted_cma,
+    OUTPUT / "cma_regime_adjusted.parquet",
+    )
     print("6/7 Building equal-weight baseline...")
     weights = equal_weight(assets).to_frame()
     save_parquet(weights, OUTPUT / "baseline_weights.parquet")
@@ -108,6 +133,10 @@ def main() -> None:
     print("\nBaseline weights:")
     print(weights.round(4).to_string())
 
+    print(f"\nLatest macro regime: {latest_regime}")
+
+    print("\nRegime-adjusted expected returns:")
+    print(regime_adjusted_cma.round(4).to_string())
 
 if __name__ == "__main__":
     main()

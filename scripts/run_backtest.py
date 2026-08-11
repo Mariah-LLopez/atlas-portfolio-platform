@@ -20,7 +20,6 @@ from atlas.backtest.metrics import (
 )
 from atlas.config import load_yaml
 
-
 DATA = Path("data/processed")
 
 
@@ -237,9 +236,7 @@ def main() -> None:
         "backtest_end": str(
             comparison.index.max().date()
         ),
-        "rebalance_count": int(
-            len(result.weights)
-        ),
+        "rebalance_count": len(result.weights),
         "transaction_cost_bps": float(
             portfolio_settings[
                 "transaction_cost_bps"

@@ -8,6 +8,7 @@ portfolio:
   min_cash_weight: 0.02
   risk_aversion: 5.0
   max_equity_weight: 0.60
+  transaction_cost_bps: 5.0
 
 research:
   start_date: "2015-01-01"

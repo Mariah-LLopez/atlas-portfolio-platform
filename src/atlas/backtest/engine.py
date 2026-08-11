@@ -37,27 +37,20 @@ def run_walk_forward_backtest(
     risk_aversion: float = 5.0,
     minimum_history_days: int = 252,
     transaction_cost_bps: float = 5.0,
+    max_turnover: float | None = None,
+    turnover_penalty: float = 0.0,
 ) -> BacktestResult:
-    """Run a monthly walk-forward multi-asset backtest.
-
-    At each month-end Atlas:
-
-    1. Uses only returns observed through that date.
-    2. Uses the latest momentum signal available through that date.
-    3. Uses a one-month-lagged macro regime.
-    4. Re-estimates expected returns and covariance.
-    5. Solves the constrained portfolio.
-    6. Holds those weights until the next rebalance.
-
-    Transaction costs are charged on rebalance turnover.
-    """
+    """Run a monthly walk-forward multi-asset backtest."""
 
     if returns.empty:
-        raise ValueError("Returns cannot be empty.")
+        raise ValueError(
+            "Returns cannot be empty."
+        )
 
     if transaction_cost_bps < 0:
         raise ValueError(
-            "transaction_cost_bps cannot be negative."
+            "transaction_cost_bps "
+            "cannot be negative."
         )
 
     returns = returns.sort_index()
@@ -78,7 +71,8 @@ def run_walk_forward_backtest(
         )
 
         raise ValueError(
-            f"Missing maximum weights for assets: {missing}"
+            f"Missing maximum weights "
+            f"for assets: {missing}"
         )
 
     month_ends = (
@@ -88,8 +82,6 @@ def run_walk_forward_backtest(
         .index
     )
 
-    # Conservative timing assumption:
-    # a regime calculated for month t is first usable in month t+1.
     available_regimes = (
         macro_regimes
         .sort_index()
@@ -100,6 +92,10 @@ def run_walk_forward_backtest(
         pd.Timestamp,
         pd.Series,
     ] = {}
+
+    previous_weights: (
+        pd.Series | None
+    ) = None
 
     for rebalance_date in month_ends:
         historical_returns = (
@@ -163,26 +159,47 @@ def run_walk_forward_backtest(
             latest_regime,
         )
 
-        weights = optimize_portfolio(
-            expected_returns=adjusted_cma[
-                "regime_adjusted_expected_return"
-            ],
-            covariance=covariance,
-            max_weights=max_weights,
-            cash_asset=cash_asset,
-            min_cash_weight=min_cash_weight,
-            equity_assets=equity_assets,
-            max_equity_weight=max_equity_weight,
-            risk_aversion=risk_aversion,
-        )
+        if previous_weights is None:
+            weights = optimize_portfolio(
+                expected_returns=adjusted_cma[
+                    "regime_adjusted_expected_return"
+                ],
+                covariance=covariance,
+                max_weights=max_weights,
+                cash_asset=cash_asset,
+                min_cash_weight=min_cash_weight,
+                equity_assets=equity_assets,
+                max_equity_weight=max_equity_weight,
+                risk_aversion=risk_aversion,
+            )
+
+        else:
+            weights = optimize_portfolio(
+                expected_returns=adjusted_cma[
+                    "regime_adjusted_expected_return"
+                ],
+                covariance=covariance,
+                max_weights=max_weights,
+                cash_asset=cash_asset,
+                min_cash_weight=min_cash_weight,
+                equity_assets=equity_assets,
+                max_equity_weight=max_equity_weight,
+                risk_aversion=risk_aversion,
+                previous_weights=previous_weights,
+                max_turnover=max_turnover,
+                turnover_penalty=turnover_penalty,
+            )
 
         weight_records[
             rebalance_date
         ] = weights
 
+        previous_weights = weights.copy()
+
     if not weight_records:
         raise ValueError(
-            "Backtest produced no rebalance observations."
+            "Backtest produced no "
+            "rebalance observations."
         )
 
     weights_history = (
@@ -190,7 +207,9 @@ def run_walk_forward_backtest(
             weight_records
         )
         .T
-        .reindex(columns=assets)
+        .reindex(
+            columns=assets
+        )
     )
 
     weights_history.index.name = (
@@ -205,8 +224,6 @@ def run_walk_forward_backtest(
         / 2.0
     )
 
-    # Do not charge turnover for initial portfolio formation
-    # in this demonstration version.
     turnover.iloc[0] = 0.0
     turnover.name = "turnover"
 

@@ -242,6 +242,17 @@ def main() -> None:
                 "transaction_cost_bps"
             ]
         ),
+
+                max_turnover=float(
+            portfolio_settings[
+                "max_turnover_per_rebalance"
+            ]
+        ),
+        turnover_penalty=float(
+            portfolio_settings[
+                "turnover_penalty"
+            ]
+        ),
     }
 
     print(

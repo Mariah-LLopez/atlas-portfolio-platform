@@ -6,6 +6,8 @@ portfolio:
   target_volatility: 0.10
   max_turnover_per_rebalance: 0.20
   min_cash_weight: 0.02
+  risk_aversion: 5.0
+  max_equity_weight: 0.60
 
 research:
   start_date: "2015-01-01"

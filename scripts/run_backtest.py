@@ -20,6 +20,7 @@ from atlas.backtest.metrics import (
 )
 from atlas.config import load_yaml
 
+
 DATA = Path("data/processed")
 
 
@@ -150,6 +151,16 @@ def main() -> None:
                 "transaction_cost_bps"
             ]
         ),
+        max_turnover=float(
+            portfolio_settings[
+                "max_turnover_per_rebalance"
+            ]
+        ),
+        turnover_penalty=float(
+            portfolio_settings[
+                "turnover_penalty"
+            ]
+        ),
     )
 
     backtest_start = (
@@ -229,6 +240,12 @@ def main() -> None:
         result.turnover.sum()
     )
 
+    metrics["atlas"][
+        "maximum_monthly_turnover"
+    ] = float(
+        result.turnover.max()
+    )
+
     metrics["metadata"] = {
         "backtest_start": str(
             comparison.index.min().date()
@@ -236,19 +253,20 @@ def main() -> None:
         "backtest_end": str(
             comparison.index.max().date()
         ),
-        "rebalance_count": len(result.weights),
+        "rebalance_count": int(
+            len(result.weights)
+        ),
         "transaction_cost_bps": float(
             portfolio_settings[
                 "transaction_cost_bps"
             ]
         ),
-
-                max_turnover=float(
+        "max_turnover_per_rebalance": float(
             portfolio_settings[
                 "max_turnover_per_rebalance"
             ]
         ),
-        turnover_penalty=float(
+        "turnover_penalty": float(
             portfolio_settings[
                 "turnover_penalty"
             ]
@@ -331,6 +349,11 @@ def main() -> None:
     print(
         f"Average monthly: "
         f"{metrics['atlas']['average_monthly_turnover']:.2%}"
+    )
+
+    print(
+        f"Maximum monthly: "
+        f"{metrics['atlas']['maximum_monthly_turnover']:.2%}"
     )
 
     print(

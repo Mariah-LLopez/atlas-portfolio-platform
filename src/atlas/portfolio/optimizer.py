@@ -9,7 +9,7 @@ class OptimizationError(RuntimeError):
     """Raised when the portfolio optimizer cannot produce a valid solution."""
 
 
-NUMERICAL_TOLERANCE = 1e-6
+NUMERICAL_TOLERANCE = 1e-4
 
 
 def _make_covariance_psd(

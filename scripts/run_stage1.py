@@ -18,6 +18,7 @@ from atlas.data.validation import checks_to_dict, validate_market_prices
 from atlas.portfolio.baseline import equal_weight
 from atlas.signals.momentum import cross_sectional_zscore, momentum_12_1
 from atlas.signals.risk import rolling_annualized_volatility
+from atlas.macro.features import build_macro_features, classify_regimes
 
 OUTPUT = Path("data/processed")
 
@@ -49,6 +50,20 @@ def main() -> None:
         observation_start=research["start_date"],
     )
     save_parquet(macro, OUTPUT / "macro.parquet")
+
+    print("Building macro features and regimes...")
+    macro_features = build_macro_features(macro)
+    macro_regimes = classify_regimes(macro_features)
+
+    save_parquet(
+        macro_features,
+        OUTPUT / "macro_features.parquet",
+    )
+
+    save_parquet(
+        macro_regimes.to_frame(),
+        OUTPUT / "macro_regimes.parquet",
+    )
 
     print("3/7 Calculating momentum...")
     momentum = momentum_12_1(prices)

@@ -20,6 +20,7 @@ from atlas.macro.tilts import apply_regime_tilts
 from atlas.portfolio.baseline import equal_weight
 from atlas.signals.momentum import cross_sectional_zscore, momentum_12_1
 from atlas.signals.risk import rolling_annualized_volatility
+from atlas.portfolio.optimizer import optimize_portfolio
 
 OUTPUT = Path("data/processed")
 
@@ -29,6 +30,8 @@ def main() -> None:
 
     assets = asset_tickers()
     portfolio_config = load_yaml("configs/portfolio.yaml")
+    asset_config = load_yaml("configs/assets.yaml")
+    portfolio_settings = portfolio_config["portfolio"]
     macro_config = load_yaml("configs/macro.yaml")
     research = portfolio_config["research"]
 
@@ -95,6 +98,31 @@ def main() -> None:
         expected_returns,
         latest_regime,
     )
+    max_weights = pd.Series(
+    {
+        ticker: settings["max_weight"]
+        for ticker, settings in asset_config["assets"].items()
+    }
+    )
+
+    optimized_weights = optimize_portfolio(
+        expected_returns=regime_adjusted_cma[
+            "regime_adjusted_expected_return"
+        ],
+        covariance=covariance,
+        max_weights=max_weights,
+        cash_asset="BIL",
+        min_cash_weight=float(
+            portfolio_settings["min_cash_weight"]
+        ),
+        equity_assets=["SPY", "VXUS"],
+        max_equity_weight=float(
+            portfolio_settings["max_equity_weight"]
+        ),
+        risk_aversion=float(
+            portfolio_settings["risk_aversion"]
+        ),
+    )
     covariance = annualized_covariance(
         returns,
         years=int(research["cma_history_years"]),
@@ -110,6 +138,11 @@ def main() -> None:
     regime_adjusted_cma,
     OUTPUT / "cma_regime_adjusted.parquet",
     )
+    save_parquet(
+        optimized_weights.to_frame(),
+        OUTPUT / "optimized_weights.parquet",
+    )
+
     print("6/7 Building equal-weight baseline...")
     weights = equal_weight(assets).to_frame()
     save_parquet(weights, OUTPUT / "baseline_weights.parquet")
@@ -134,7 +167,15 @@ def main() -> None:
     print(weights.round(4).to_string())
 
     print(f"\nLatest macro regime: {latest_regime}")
+    print("\nOptimized target portfolio:")
 
+    print(
+        (optimized_weights * 100)
+        .round(2)
+        .astype(str)
+        .add("%")
+        .to_string()
+    )
     print("\nRegime-adjusted expected returns:")
     print(regime_adjusted_cma.round(4).to_string())
 

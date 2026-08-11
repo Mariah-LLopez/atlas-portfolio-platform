@@ -15,3 +15,5 @@ research:
   annualization_factor: 252
   cma_history_years: 5
   cma_momentum_tilt: 0.02
+  risk_aversion: 5.0
+  max_equity_weight: 0.60

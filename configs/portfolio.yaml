@@ -8,7 +8,9 @@ portfolio:
   min_cash_weight: 0.02
   risk_aversion: 5.0
   max_equity_weight: 0.60
-
+  transaction_cost_bps: 5.0
+  turnover_penalty: 0.002
+  
 research:
   start_date: "2015-01-01"
   momentum_lookback_months: 12

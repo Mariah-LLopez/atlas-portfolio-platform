@@ -19,7 +19,6 @@ from atlas.portfolio.baseline import equal_weight
 from atlas.signals.momentum import cross_sectional_zscore, momentum_12_1
 from atlas.signals.risk import rolling_annualized_volatility
 
-
 OUTPUT = Path("data/processed")
 
 

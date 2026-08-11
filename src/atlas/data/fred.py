@@ -6,7 +6,6 @@ from collections.abc import Iterable
 import pandas as pd
 import requests
 
-
 FRED_OBSERVATIONS_URL = "https://api.stlouisfed.org/fred/series/observations"
 
 

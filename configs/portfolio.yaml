@@ -1,0 +1,17 @@
+portfolio:
+  name: Atlas Multi-Asset
+  base_currency: USD
+  rebalance_frequency: monthly
+  starting_capital: 1000000
+  target_volatility: 0.10
+  max_turnover_per_rebalance: 0.20
+  min_cash_weight: 0.02
+
+research:
+  start_date: "2015-01-01"
+  momentum_lookback_months: 12
+  momentum_skip_months: 1
+  volatility_window_days: 63
+  annualization_factor: 252
+  cma_history_years: 5
+  cma_momentum_tilt: 0.02

@@ -1,0 +1,36 @@
+assets:
+  SPY:
+    name: SPDR S&P 500 ETF Trust
+    sleeve: US Equity
+    role: Growth
+    max_weight: 0.40
+  VXUS:
+    name: Vanguard Total International Stock ETF
+    sleeve: International Equity
+    role: Diversification
+    max_weight: 0.30
+  IEF:
+    name: iShares 7-10 Year Treasury Bond ETF
+    sleeve: US Treasuries
+    role: Defensive duration
+    max_weight: 0.40
+  LQD:
+    name: iShares iBoxx Investment Grade Corporate Bond ETF
+    sleeve: Investment Grade Credit
+    role: Income and credit
+    max_weight: 0.30
+  VNQ:
+    name: Vanguard Real Estate ETF
+    sleeve: REITs
+    role: Real assets
+    max_weight: 0.20
+  GLD:
+    name: SPDR Gold Shares
+    sleeve: Gold
+    role: Inflation and crisis diversifier
+    max_weight: 0.20
+  BIL:
+    name: SPDR Bloomberg 1-3 Month T-Bill ETF
+    sleeve: T-Bills
+    role: Cash proxy
+    max_weight: 0.30

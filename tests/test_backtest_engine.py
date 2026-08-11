@@ -14,12 +14,6 @@ def build_test_inputs():
         periods=550,
     )
 
-    assets = [
-        "SPY",
-        "GLD",
-        "BIL",
-    ]
-
     returns = pd.DataFrame(
         {
             "SPY": rng.normal(

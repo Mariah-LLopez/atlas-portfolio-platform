@@ -9,7 +9,12 @@ class OptimizationError(RuntimeError):
     """Raised when the portfolio optimizer cannot produce a valid solution."""
 
 
+# Solver outputs can contain extremely small numerical artifacts.
 NUMERICAL_TOLERANCE = 1e-4
+
+# Keep the mathematical turnover constraint slightly below the policy
+# limit so numerical solver tolerance does not create apparent breaches.
+TURNOVER_SAFETY_BUFFER = 1e-4
 
 
 def _make_covariance_psd(
@@ -45,10 +50,9 @@ def _clean_weights(
 ) -> pd.Series:
     """Remove tiny numerical solver artifacts from portfolio weights."""
 
-    cleaned = weights.copy()
+    cleaned = weights.copy().astype(float)
 
-    # Values such as -0.00000001 are numerical artifacts,
-    # not genuine short positions.
+    # Convert extremely small positive or negative weights to zero.
     tiny = (
         cleaned.abs()
         <= NUMERICAL_TOLERANCE
@@ -56,6 +60,7 @@ def _clean_weights(
 
     cleaned.loc[tiny] = 0.0
 
+    # Reject genuinely negative allocations.
     if (
         cleaned
         < -NUMERICAL_TOLERANCE
@@ -66,11 +71,11 @@ def _clean_weights(
         ]
 
         raise OptimizationError(
-            "Optimizer returned materially negative "
-            f"weights: {bad.to_dict()}"
+            "Optimizer returned materially "
+            f"negative weights: {bad.to_dict()}"
         )
 
-    # Remove any remaining microscopic negatives.
+    # Eliminate any residual microscopic negatives.
     cleaned = cleaned.clip(
         lower=0.0
     )
@@ -81,13 +86,16 @@ def _clean_weights(
 
     if total <= 0:
         raise OptimizationError(
-            "Optimizer returned invalid portfolio weights."
+            "Optimizer returned invalid "
+            "portfolio weights."
         )
 
-    # Restore exact 100% total after numerical cleanup.
+    # Restore an exact 100% allocation after cleanup.
     cleaned = (
         cleaned / total
     )
+
+    cleaned.name = "weight"
 
     return cleaned
 
@@ -108,8 +116,11 @@ def optimize_portfolio(
 ) -> pd.Series:
     """Solve a constrained long-only mean-variance portfolio.
 
-    Optional previous weights allow Atlas to penalize
-    and/or constrain portfolio turnover.
+    The optimizer balances expected return against portfolio variance.
+
+    Optional previous weights allow Atlas to:
+    - penalize unnecessary trading;
+    - enforce a maximum portfolio turnover rule.
     """
 
     assets = expected_returns.index.tolist()
@@ -166,8 +177,8 @@ def optimize_portfolio(
         )
 
         raise ValueError(
-            "Missing maximum weights for assets: "
-            f"{missing}"
+            "Missing maximum weights "
+            f"for assets: {missing}"
         )
 
     if (
@@ -176,6 +187,18 @@ def optimize_portfolio(
     ):
         raise ValueError(
             "min_cash_weight must be "
+            "between 0 and 1."
+        )
+
+    if (
+        max_equity_weight is not None
+        and (
+            max_equity_weight < 0
+            or max_equity_weight > 1
+        )
+    ):
+        raise ValueError(
+            "max_equity_weight must be "
             "between 0 and 1."
         )
 
@@ -210,12 +233,11 @@ def optimize_portfolio(
             )
 
             raise ValueError(
-                "Missing previous weights for "
-                f"assets: {missing}"
+                "Missing previous weights "
+                f"for assets: {missing}"
             )
 
-        # Permit microscopic solver artifacts, but reject
-        # economically meaningful negative holdings.
+        # Allow tiny negative values caused by numerical solver noise.
         if (
             previous
             < -NUMERICAL_TOLERANCE
@@ -226,8 +248,9 @@ def optimize_portfolio(
             ]
 
             raise ValueError(
-                "Previous weights contain materially "
-                f"negative values: {bad.to_dict()}"
+                "Previous weights contain "
+                "materially negative values: "
+                f"{bad.to_dict()}"
             )
 
         previous = previous.clip(
@@ -257,8 +280,8 @@ def optimize_portfolio(
         or turnover_penalty > 0
     ):
         raise ValueError(
-            "previous_weights are required when "
-            "using turnover controls."
+            "previous_weights are required "
+            "when using turnover controls."
         )
 
     mu = expected_returns.to_numpy(
@@ -298,6 +321,8 @@ def optimize_portfolio(
             .to_numpy(dtype=float)
         )
 
+        # Portfolio turnover:
+        # 0.5 * sum(abs(new_weight - old_weight))
         turnover_expression = (
             0.5
             * cp.norm1(
@@ -343,22 +368,31 @@ def optimize_portfolio(
             if asset in assets
         ]
 
-        constraints.append(
-            cp.sum(
-                weights[
-                    equity_indices
-                ]
+        if equity_indices:
+            constraints.append(
+                cp.sum(
+                    weights[
+                        equity_indices
+                    ]
+                )
+                <= max_equity_weight
             )
-            <= max_equity_weight
-        )
 
     if (
         turnover_expression is not None
         and max_turnover is not None
     ):
+        # Give the numerical solver a small buffer below
+        # the business-policy limit.
+        effective_max_turnover = max(
+            0.0,
+            max_turnover
+            - TURNOVER_SAFETY_BUFFER,
+        )
+
         constraints.append(
             turnover_expression
-            <= max_turnover
+            <= effective_max_turnover
         )
 
     problem = cp.Problem(
@@ -379,7 +413,8 @@ def optimize_portfolio(
 
     if weights.value is None:
         raise OptimizationError(
-            "Optimizer returned no portfolio weights."
+            "Optimizer returned no "
+            "portfolio weights."
         )
 
     result = pd.Series(
@@ -394,5 +429,27 @@ def optimize_portfolio(
     result = _clean_weights(
         result
     )
+
+    # Final safety check after solver cleanup.
+    if previous is not None and max_turnover is not None:
+        realized_turnover = float(
+            result
+            .sub(previous)
+            .abs()
+            .sum()
+            / 2.0
+        )
+
+        if (
+            realized_turnover
+            > max_turnover
+            + NUMERICAL_TOLERANCE
+        ):
+            raise OptimizationError(
+                "Cleaned portfolio exceeds "
+                "turnover policy: "
+                f"{realized_turnover:.6f} > "
+                f"{max_turnover:.6f}"
+            )
 
     return result

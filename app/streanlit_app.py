@@ -6,7 +6,6 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATA = PROJECT_ROOT / "data" / "processed"
 
@@ -451,12 +450,12 @@ def macro_page() -> None:
             in cma.columns
         ):
             st.bar_chart(
-                (
+                
                     cma[
                         "regime_adjusted_expected_return"
                     ]
                     * 100
-                )
+                
             )
 
 
@@ -612,15 +611,17 @@ def attribution_page() -> None:
     )
 
     if report:
-        st.metric(
-            "Maximum Reconciliation Error",
-            (
-                f"{report.get(
-                    'maximum_daily_reconciliation_error',
-                    0.0,
-                ):.12f}"
-            ),
+        reconciliation_error = float(
+            report.get(
+                "maximum_daily_reconciliation_error",
+                0.0,
         )
+    )
+
+    st.metric(
+        "Maximum Reconciliation Error",
+        f"{reconciliation_error:.12f}",
+    )
 
     if summary is not None:
         st.subheader(

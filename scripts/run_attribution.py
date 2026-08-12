@@ -13,7 +13,6 @@ from atlas.attribution.contribution import (
 )
 from atlas.config import load_yaml
 
-
 DATA = Path("data/processed")
 
 
@@ -93,7 +92,7 @@ def main() -> None:
     report = {
         "maximum_daily_reconciliation_error": error,
         "transaction_cost_bps": transaction_cost_bps,
-        "observation_count": int(len(daily)),
+        "observation_count": len(daily),
     }
 
     (

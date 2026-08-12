@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATA = PROJECT_ROOT / "data" / "processed"
 
@@ -21,6 +22,8 @@ st.set_page_config(
 def load_parquet(
     filename: str,
 ) -> pd.DataFrame | None:
+    """Load a processed Parquet artifact if it exists."""
+
     path = DATA / filename
 
     if not path.exists():
@@ -33,6 +36,8 @@ def load_parquet(
 def load_json(
     filename: str,
 ) -> dict | None:
+    """Load a processed JSON artifact if it exists."""
+
     path = DATA / filename
 
     if not path.exists():
@@ -40,7 +45,7 @@ def load_json(
 
     return json.loads(
         path.read_text(
-            encoding="utf-8"
+            encoding="utf-8",
         )
     )
 
@@ -49,6 +54,8 @@ def missing_file(
     filename: str,
     command: str | None = None,
 ) -> None:
+    """Display a friendly missing-output message."""
+
     st.warning(
         f"Missing required output: `{filename}`"
     )
@@ -63,7 +70,34 @@ def missing_file(
 def format_percent(
     value: float,
 ) -> str:
+    """Format a decimal as a percentage."""
+
     return f"{value:.2%}"
+
+
+def build_bar_frame(
+    series: pd.Series,
+    *,
+    multiplier: float = 1.0,
+) -> pd.DataFrame:
+    """Convert a Series into chart-safe asset/value columns."""
+
+    frame = (
+        series.astype(float)
+        .mul(multiplier)
+        .rename("value")
+        .rename_axis("asset")
+        .reset_index()
+    )
+
+    frame["asset"] = frame["asset"].astype(str)
+
+    return frame
+
+
+# ======================================================================
+# OVERVIEW
+# ======================================================================
 
 
 def overview_page() -> None:
@@ -88,30 +122,41 @@ def overview_page() -> None:
         "optimized_weights.parquet"
     )
 
+    # ------------------------------------------------------------------
+    # Model health
+    # ------------------------------------------------------------------
     if health:
-        status = health.get(
-            "overall_status",
-            "UNKNOWN",
+        status = str(
+            health.get(
+                "overall_status",
+                "UNKNOWN",
+            )
         )
 
         if status == "HEALTHY":
             st.success(
                 "Model Status: HEALTHY"
             )
+
         elif status == "WARNING":
             st.warning(
                 "Model Status: WARNING"
             )
+
         else:
             st.error(
                 f"Model Status: {status}"
             )
+
     else:
         missing_file(
             "model_health.json",
             "python scripts/run_health.py",
         )
 
+    # ------------------------------------------------------------------
+    # Performance metrics
+    # ------------------------------------------------------------------
     if metrics:
         atlas = metrics.get(
             "atlas",
@@ -125,9 +170,11 @@ def overview_page() -> None:
         col1.metric(
             "Annualized Return",
             format_percent(
-                atlas.get(
-                    "annualized_return",
-                    0.0,
+                float(
+                    atlas.get(
+                        "annualized_return",
+                        0.0,
+                    )
                 )
             ),
         )
@@ -135,28 +182,48 @@ def overview_page() -> None:
         col2.metric(
             "Annualized Volatility",
             format_percent(
-                atlas.get(
-                    "annualized_volatility",
-                    0.0,
+                float(
+                    atlas.get(
+                        "annualized_volatility",
+                        0.0,
+                    )
                 )
             ),
         )
 
         col3.metric(
             "Sharpe Ratio",
-            f"{atlas.get('sharpe_ratio', 0.0):.2f}",
+            (
+                f"{float(
+                    atlas.get(
+                        'sharpe_ratio',
+                        0.0,
+                    )
+                ):.2f}"
+            ),
         )
 
         col4.metric(
             "Max Drawdown",
             format_percent(
-                atlas.get(
-                    "max_drawdown",
-                    0.0,
+                float(
+                    atlas.get(
+                        "max_drawdown",
+                        0.0,
+                    )
                 )
             ),
         )
 
+    else:
+        missing_file(
+            "backtest_metrics.json",
+            "python scripts/run_backtest.py",
+        )
+
+    # ------------------------------------------------------------------
+    # Target allocation
+    # ------------------------------------------------------------------
     st.subheader(
         "Current Target Allocation"
     )
@@ -164,18 +231,26 @@ def overview_page() -> None:
     if weights is not None:
         current = (
             weights["weight"]
+            .astype(float)
             .sort_values(
                 ascending=False
             )
-            * 100
+        )
+
+        chart = build_bar_frame(
+            current,
+            multiplier=100.0,
         )
 
         st.bar_chart(
-            current
+            chart,
+            x="asset",
+            y="value",
         )
 
         display = (
             current
+            .mul(100.0)
             .rename(
                 "Target Weight (%)"
             )
@@ -187,11 +262,17 @@ def overview_page() -> None:
             display,
             use_container_width=True,
         )
+
     else:
         missing_file(
             "optimized_weights.parquet",
             "python scripts/run_stage1.py",
         )
+
+
+# ======================================================================
+# PORTFOLIO
+# ======================================================================
 
 
 def portfolio_page() -> None:
@@ -216,7 +297,7 @@ def portfolio_page() -> None:
 
     comparison = target.rename(
         columns={
-            "weight": "Atlas Target"
+            "weight": "Atlas Target",
         }
     )
 
@@ -224,16 +305,17 @@ def portfolio_page() -> None:
         comparison = comparison.join(
             baseline.rename(
                 columns={
-                    "weight": "Equal Weight"
+                    "weight": "Equal Weight",
                 }
             ),
             how="left",
         )
 
     comparison = (
-        comparison
-        * 100
-    ).round(2)
+        comparison.astype(float)
+        .mul(100.0)
+        .round(2)
+    )
 
     st.subheader(
         "Target vs. Baseline"
@@ -248,12 +330,15 @@ def portfolio_page() -> None:
         use_container_width=True,
     )
 
-    rebalance = load_parquet(
-        "rebalance_orders.parquet"
-    )
-
+    # ------------------------------------------------------------------
+    # Rebalance orders
+    # ------------------------------------------------------------------
     st.subheader(
         "Rebalance Orders"
+    )
+
+    rebalance = load_parquet(
+        "rebalance_orders.parquet"
     )
 
     if rebalance is not None:
@@ -261,6 +346,7 @@ def portfolio_page() -> None:
             rebalance,
             use_container_width=True,
         )
+
     else:
         st.info(
             "Rebalance orders have not been generated yet."
@@ -270,6 +356,11 @@ def portfolio_page() -> None:
             "python scripts/generate_rebalance.py",
             language="powershell",
         )
+
+
+# ======================================================================
+# SIGNALS
+# ======================================================================
 
 
 def signals_page() -> None:
@@ -285,122 +376,139 @@ def signals_page() -> None:
         "volatility.parquet"
     )
 
+    # ------------------------------------------------------------------
+    # Momentum
+    # ------------------------------------------------------------------
     if momentum is not None:
         st.subheader(
             "Latest Momentum Z-Scores"
         )
 
-        latest_momentum = (
+        momentum_clean = (
             momentum
             .dropna(how="all")
-            .iloc[-1]
-            .sort_values(
-                ascending=False
+        )
+
+        if not momentum_clean.empty:
+            latest_momentum = (
+                momentum_clean
+                .iloc[-1]
+                .dropna()
+                .astype(float)
+                .sort_values(
+                    ascending=False
+                )
             )
-        )
 
-        momentum_chart = (
-            latest_momentum
-            .rename("Momentum Z-Score")
-            .rename_axis("Asset")
-            .reset_index()
-        )
+            momentum_chart = (
+                build_bar_frame(
+                    latest_momentum
+                )
+            )
 
-        st.bar_chart(
-            momentum_chart,
-            x="Asset",
-            y="Momentum Z-Score",
-        )
+            st.bar_chart(
+                momentum_chart,
+                x="asset",
+                y="value",
+            )
 
-        st.dataframe(
-            momentum_chart,
-            use_container_width=True,
-            hide_index=True,
-        )
+            momentum_display = (
+                latest_momentum
+                .rename(
+                    "Momentum Z-Score"
+                )
+                .to_frame()
+                .round(3)
+            )
+
+            st.dataframe(
+                momentum_display,
+                use_container_width=True,
+            )
+
+        else:
+            st.info(
+                "Momentum data contains no usable observations."
+            )
 
     else:
         missing_file(
-            "momentum_zscore.parquet"
+            "momentum_zscore.parquet",
+            "python scripts/run_stage1.py",
         )
 
+    # ------------------------------------------------------------------
+    # Volatility
+    # ------------------------------------------------------------------
     if volatility is not None:
         st.subheader(
             "Latest Annualized Volatility"
         )
 
-        latest_vol = (
+        volatility_clean = (
             volatility
             .dropna(how="all")
-            .iloc[-1]
-            .sort_values(
-                ascending=False
-            )
         )
 
-        volatility_chart = (
-            (
+        if not volatility_clean.empty:
+            latest_vol = (
+                volatility_clean
+                .iloc[-1]
+                .dropna()
+                .astype(float)
+                .sort_values(
+                    ascending=False
+                )
+            )
+
+            volatility_chart = (
+                build_bar_frame(
+                    latest_vol,
+                    multiplier=100.0,
+                )
+            )
+
+            st.bar_chart(
+                volatility_chart,
+                x="asset",
+                y="value",
+            )
+
+            volatility_display = (
                 latest_vol
-                * 100
+                .mul(100.0)
+                .rename(
+                    "Annualized Volatility (%)"
+                )
+                .to_frame()
+                .round(2)
             )
-            .rename(
-                "Annualized Volatility (%)"
+
+            st.dataframe(
+                volatility_display,
+                use_container_width=True,
             )
-            .rename_axis("Asset")
-            .reset_index()
-        )
 
-        st.bar_chart(
-            volatility_chart,
-            x="Asset",
-            y="Annualized Volatility (%)",
-        )
-
-        st.dataframe(
-            volatility_chart,
-            use_container_width=True,
-            hide_index=True,
-        )
+        else:
+            st.info(
+                "Volatility data contains no usable observations."
+            )
 
     else:
         missing_file(
-            "volatility.parquet"
+            "volatility.parquet",
+            "python scripts/run_stage1.py",
         )
 
-    if volatility is not None:
-        st.subheader(
-            "Latest Annualized Volatility"
-        )
 
-        latest_vol = (
-            volatility
-            .dropna(how="all")
-            .iloc[-1]
-            .sort_values(
-                ascending=False
-            )
-        )
-
-        st.bar_chart(
-            latest_vol
-        )
-
-        st.dataframe(
-            (
-                latest_vol
-                * 100
-            )
-            .rename(
-                "Annualized Volatility (%)"
-            )
-            .to_frame()
-            .round(2),
-            use_container_width=True,
-        )
+# ======================================================================
+# MACRO + CMAs
+# ======================================================================
 
 
 def macro_page() -> None:
     st.title(
-        "Macro Regime & CMAs"
+        "Macro Regime & Capital Market Assumptions"
     )
 
     features = load_parquet(
@@ -415,29 +523,44 @@ def macro_page() -> None:
         "cma_regime_adjusted.parquet"
     )
 
+    # ------------------------------------------------------------------
+    # Current regime
+    # ------------------------------------------------------------------
     if regimes is not None:
-        regime_series = (
-            regimes[
-                "macro_regime"
-            ]
-            .dropna()
+        if "macro_regime" in regimes.columns:
+            regime_series = (
+                regimes[
+                    "macro_regime"
+                ]
+                .dropna()
+            )
+
+            if not regime_series.empty:
+                latest_regime = str(
+                    regime_series.iloc[-1]
+                )
+
+                st.metric(
+                    "Current Macro Regime",
+                    (
+                        latest_regime
+                        .replace(
+                            "_",
+                            " ",
+                        )
+                        .title()
+                    ),
+                )
+
+    else:
+        missing_file(
+            "macro_regimes.parquet",
+            "python scripts/run_stage1.py",
         )
 
-        if not regime_series.empty:
-            latest_regime = (
-                regime_series.iloc[-1]
-            )
-
-            st.metric(
-                "Current Macro Regime",
-                latest_regime
-                .replace(
-                    "_",
-                    " "
-                )
-                .title(),
-            )
-
+    # ------------------------------------------------------------------
+    # Macro features
+    # ------------------------------------------------------------------
     if features is not None:
         st.subheader(
             "Inflation & Growth"
@@ -453,44 +576,66 @@ def macro_page() -> None:
         ]
 
         if chart_columns:
-            st.line_chart(
+            macro_chart = (
                 features[
                     chart_columns
-                ].dropna()
+                ]
+                .dropna(
+                    how="all"
+                )
+            )
+
+            st.line_chart(
+                macro_chart
             )
 
         st.subheader(
             "Latest Macro Features"
         )
 
-        latest_features = (
+        features_clean = (
             features
             .dropna(how="all")
-            .tail(1)
-            .T
         )
 
-        latest_features.columns = [
-            "Latest"
-        ]
+        if not features_clean.empty:
+            latest_features = (
+                features_clean
+                .tail(1)
+                .T
+            )
 
-        st.dataframe(
-            latest_features.round(3),
-            use_container_width=True,
+            latest_features.columns = [
+                "Latest",
+            ]
+
+            st.dataframe(
+                latest_features.round(3),
+                use_container_width=True,
+            )
+
+    else:
+        missing_file(
+            "macro_features.parquet",
+            "python scripts/run_stage1.py",
         )
 
+    # ------------------------------------------------------------------
+    # CMAs
+    # ------------------------------------------------------------------
     if cma is not None:
         st.subheader(
             "Regime-Adjusted Expected Returns"
         )
 
-        display = (
-            cma.copy()
-            * 100
-        ).round(2)
+        cma_display = (
+            cma.astype(float)
+            .mul(100.0)
+            .round(2)
+        )
 
         st.dataframe(
-            display,
+            cma_display,
             use_container_width=True,
         )
 
@@ -498,14 +643,37 @@ def macro_page() -> None:
             "regime_adjusted_expected_return"
             in cma.columns
         ):
-            st.bar_chart(
-                
-                    cma[
-                        "regime_adjusted_expected_return"
-                    ]
-                    * 100
-                
+            cma_series = (
+                cma[
+                    "regime_adjusted_expected_return"
+                ]
+                .astype(float)
+                .sort_values(
+                    ascending=False
+                )
             )
+
+            cma_chart = build_bar_frame(
+                cma_series,
+                multiplier=100.0,
+            )
+
+            st.bar_chart(
+                cma_chart,
+                x="asset",
+                y="value",
+            )
+
+    else:
+        missing_file(
+            "cma_regime_adjusted.parquet",
+            "python scripts/run_stage1.py",
+        )
+
+
+# ======================================================================
+# BACKTEST
+# ======================================================================
 
 
 def backtest_page() -> None:
@@ -532,6 +700,9 @@ def backtest_page() -> None:
         )
         return
 
+    # ------------------------------------------------------------------
+    # Wealth curves
+    # ------------------------------------------------------------------
     wealth = (
         1.0
         + returns.fillna(0.0)
@@ -545,8 +716,14 @@ def backtest_page() -> None:
         wealth
     )
 
+    # ------------------------------------------------------------------
+    # Performance metrics
+    # ------------------------------------------------------------------
     if metrics:
-        rows = {}
+        rows: dict[
+            str,
+            dict[str, float],
+        ] = {}
 
         for strategy in [
             "atlas",
@@ -560,86 +737,163 @@ def backtest_page() -> None:
             if not values:
                 continue
 
-            rows[strategy] = {
-                "Annualized Return": (
+            rows[
+                strategy
+            ] = {
+                "Annualized Return": float(
                     values.get(
-                        "annualized_return"
+                        "annualized_return",
+                        0.0,
                     )
                 ),
-                "Annualized Volatility": (
+                "Annualized Volatility": float(
                     values.get(
-                        "annualized_volatility"
+                        "annualized_volatility",
+                        0.0,
                     )
                 ),
-                "Sharpe Ratio": (
+                "Sharpe Ratio": float(
                     values.get(
-                        "sharpe_ratio"
+                        "sharpe_ratio",
+                        0.0,
                     )
                 ),
-                "Max Drawdown": (
+                "Max Drawdown": float(
                     values.get(
-                        "max_drawdown"
+                        "max_drawdown",
+                        0.0,
                     )
                 ),
             }
 
         performance = (
-            pd.DataFrame(rows)
+            pd.DataFrame(
+                rows
+            )
             .T
         )
 
-        st.subheader(
-            "Performance Comparison"
-        )
+        if not performance.empty:
+            st.subheader(
+                "Performance Comparison"
+            )
 
-        st.dataframe(
-            performance.style.format(
-                {
-                    "Annualized Return": "{:.2%}",
-                    "Annualized Volatility": "{:.2%}",
-                    "Sharpe Ratio": "{:.2f}",
-                    "Max Drawdown": "{:.2%}",
-                }
-            ),
-            use_container_width=True,
-        )
+            performance_display = (
+                performance.copy()
+            )
 
+            performance_display[
+                "Annualized Return"
+            ] = performance_display[
+                "Annualized Return"
+            ].map(
+                lambda value: (
+                    f"{value:.2%}"
+                )
+            )
+
+            performance_display[
+                "Annualized Volatility"
+            ] = performance_display[
+                "Annualized Volatility"
+            ].map(
+                lambda value: (
+                    f"{value:.2%}"
+                )
+            )
+
+            performance_display[
+                "Sharpe Ratio"
+            ] = performance_display[
+                "Sharpe Ratio"
+            ].map(
+                lambda value: (
+                    f"{value:.2f}"
+                )
+            )
+
+            performance_display[
+                "Max Drawdown"
+            ] = performance_display[
+                "Max Drawdown"
+            ].map(
+                lambda value: (
+                    f"{value:.2%}"
+                )
+            )
+
+            st.dataframe(
+                performance_display,
+                use_container_width=True,
+            )
+
+    # ------------------------------------------------------------------
+    # Turnover
+    # ------------------------------------------------------------------
     if turnover is not None:
-        st.subheader(
-            "Historical Turnover"
-        )
+        if "turnover" in turnover.columns:
+            st.subheader(
+                "Historical Turnover"
+            )
 
-        st.line_chart(
-            turnover
-        )
+            turnover_chart = (
+                turnover[
+                    [
+                        "turnover",
+                    ]
+                ]
+                .astype(float)
+                .mul(100.0)
+            )
 
-        maximum = float(
-            turnover[
-                "turnover"
-            ].max()
-        )
+            turnover_chart = (
+                turnover_chart.rename(
+                    columns={
+                        "turnover": (
+                            "Turnover (%)"
+                        ),
+                    }
+                )
+            )
 
-        average = float(
-            turnover[
-                "turnover"
-            ].mean()
-        )
+            st.line_chart(
+                turnover_chart
+            )
 
-        col1, col2 = st.columns(2)
+            maximum = float(
+                turnover[
+                    "turnover"
+                ].max()
+            )
 
-        col1.metric(
-            "Average Monthly Turnover",
-            format_percent(
-                average
-            ),
-        )
+            average = float(
+                turnover[
+                    "turnover"
+                ].mean()
+            )
 
-        col2.metric(
-            "Maximum Monthly Turnover",
-            format_percent(
-                maximum
-            ),
-        )
+            col1, col2 = st.columns(
+                2
+            )
+
+            col1.metric(
+                "Average Monthly Turnover",
+                format_percent(
+                    average
+                ),
+            )
+
+            col2.metric(
+                "Maximum Monthly Turnover",
+                format_percent(
+                    maximum
+                ),
+            )
+
+
+# ======================================================================
+# ATTRIBUTION
+# ======================================================================
 
 
 def attribution_page() -> None:
@@ -659,70 +913,103 @@ def attribution_page() -> None:
         "attribution_report.json"
     )
 
+    # ------------------------------------------------------------------
+    # Reconciliation
+    # ------------------------------------------------------------------
     if report:
-        reconciliation_error = float(
+        reconciliation_value = float(
             report.get(
                 "maximum_daily_reconciliation_error",
                 0.0,
+            )
         )
-    )
 
-    st.metric(
-        "Maximum Reconciliation Error",
-        f"{reconciliation_error:.12f}",
-    )
+        st.metric(
+            "Maximum Reconciliation Error",
+            f"{reconciliation_value:.12f}",
+        )
 
+    # ------------------------------------------------------------------
+    # Total contribution
+    # ------------------------------------------------------------------
     if summary is not None:
-        st.subheader(
-            "Total Contribution by Source"
-        )
-
-        contribution = (
-            summary[
-                "total_contribution"
-            ]
-            .sort_values(
-                ascending=False
+        if (
+            "total_contribution"
+            in summary.columns
+        ):
+            st.subheader(
+                "Total Contribution by Source"
             )
-            * 100
-        )
 
-        st.bar_chart(
-            contribution
-        )
-
-        display = (
-            contribution
-            .rename(
-                "Total Contribution (%)"
+            contribution = (
+                summary[
+                    "total_contribution"
+                ]
+                .astype(float)
+                .sort_values(
+                    ascending=False
+                )
             )
-            .to_frame()
-            .round(2)
-        )
 
-        st.dataframe(
-            display,
-            use_container_width=True,
-        )
+            contribution_chart = (
+                build_bar_frame(
+                    contribution,
+                    multiplier=100.0,
+                )
+            )
+
+            st.bar_chart(
+                contribution_chart,
+                x="asset",
+                y="value",
+            )
+
+            display = (
+                contribution
+                .mul(100.0)
+                .rename(
+                    "Total Contribution (%)"
+                )
+                .to_frame()
+                .round(2)
+            )
+
+            st.dataframe(
+                display,
+                use_container_width=True,
+            )
+
     else:
         missing_file(
             "attribution_summary.parquet",
             "python scripts/run_attribution.py",
         )
 
+    # ------------------------------------------------------------------
+    # Monthly attribution
+    # ------------------------------------------------------------------
     if monthly is not None:
         st.subheader(
             "Latest 12 Months"
         )
 
+        monthly_display = (
+            monthly
+            .tail(12)
+            .astype(float)
+            .mul(100.0)
+            .round(2)
+        )
+
         st.dataframe(
-            (
-                monthly
-                .tail(12)
-                * 100
-            ).round(2),
+            monthly_display,
             use_container_width=True,
         )
+
+
+# ======================================================================
+# SYSTEM HEALTH
+# ======================================================================
 
 
 def health_page() -> None:
@@ -741,54 +1028,66 @@ def health_page() -> None:
         )
         return
 
-    status = health.get(
-        "overall_status",
-        "UNKNOWN",
+    status = str(
+        health.get(
+            "overall_status",
+            "UNKNOWN",
+        )
     )
 
     if status == "HEALTHY":
         st.success(
             "ATLAS MODEL STATUS: HEALTHY"
         )
+
     elif status == "WARNING":
         st.warning(
             "ATLAS MODEL STATUS: WARNING"
         )
+
     else:
         st.error(
             f"ATLAS MODEL STATUS: {status}"
         )
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3 = st.columns(
+        3
+    )
 
     col1.metric(
         "Passed",
-        health.get(
-            "passed_checks",
-            0,
+        int(
+            health.get(
+                "passed_checks",
+                0,
+            )
         ),
     )
 
     col2.metric(
         "Failed",
-        health.get(
-            "failed_checks",
-            0,
+        int(
+            health.get(
+                "failed_checks",
+                0,
+            )
         ),
     )
 
     col3.metric(
         "Warnings",
-        health.get(
-            "warning_checks",
-            0,
+        int(
+            health.get(
+                "warning_checks",
+                0,
+            )
         ),
     )
 
     checks = pd.DataFrame(
         health.get(
             "checks",
-            []
+            [],
         )
     )
 
@@ -803,10 +1102,21 @@ def health_page() -> None:
             hide_index=True,
         )
 
-    st.caption(
-        f"Report generated: "
-        f"{health.get('generated_at_utc', 'Unknown')}"
+    generated_at = str(
+        health.get(
+            "generated_at_utc",
+            "Unknown",
+        )
     )
+
+    st.caption(
+        f"Report generated: {generated_at}"
+    )
+
+
+# ======================================================================
+# NAVIGATION
+# ======================================================================
 
 
 pages = [

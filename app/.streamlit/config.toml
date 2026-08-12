@@ -1,13 +1,67 @@
+[client]
+toolbarMode = "minimal"
+
 [theme]
 base = "light"
-primaryColor = "#2563EB"
-backgroundColor = "#F7F9FC"
-secondaryBackgroundColor = "#FFFFFF"
+primaryColor = "#7C3AED"
+backgroundColor = "#FAFAFF"
+secondaryBackgroundColor = "#F3F0FF"
 textColor = "#172033"
-font = "sans serif"
+linkColor = "#6D28D9"
+baseRadius = "full"
+buttonRadius = "full"
+borderColor = "#DDD6FE"
+dataframeBorderColor = "#E9D5FF"
+dataframeHeaderBackgroundColor = "#F3E8FF"
+showWidgetBorder = true
+showSidebarBorder = true
+
+redColor = "#F43F5E"
+orangeColor = "#F59E0B"
+yellowColor = "#EAB308"
+greenColor = "#22C55E"
+blueColor = "#0EA5E9"
+violetColor = "#7C3AED"
+
+chartCategoricalColors = [
+    "#7C3AED",
+    "#06B6D4",
+    "#22C55E",
+    "#F59E0B",
+    "#EC4899",
+    "#3B82F6",
+    "#F43F5E",
+]
+
+chartSequentialColors = [
+    "#F5F3FF",
+    "#DDD6FE",
+    "#C4B5FD",
+    "#A78BFA",
+    "#8B5CF6",
+    "#7C3AED",
+    "#6D28D9",
+]
+
+chartDivergingColors = [
+    "#F43F5E",
+    "#FB7185",
+    "#FDA4AF",
+    "#F8FAFC",
+    "#67E8F9",
+    "#22D3EE",
+    "#06B6D4",
+]
 
 [theme.sidebar]
-backgroundColor = "#0F172A"
-secondaryBackgroundColor = "#172033"
+primaryColor = "#C084FC"
+backgroundColor = "#171025"
+secondaryBackgroundColor = "#25153A"
 textColor = "#F8FAFC"
-primaryColor = "#60A5FA"
+linkColor = "#67E8F9"
+borderColor = "#3B2656"
+dataframeBorderColor = "#4C1D95"
+dataframeHeaderBackgroundColor = "#25153A"
+showWidgetBorder = true
+baseRadius = "full"
+buttonRadius = "full"

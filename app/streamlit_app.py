@@ -8,7 +8,6 @@ import streamlit as st
 
 from atlas.config import load_yaml
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 PROCESSED_DATA = (
@@ -2725,17 +2724,17 @@ def attribution_page(
 
         if report:
             st.write(
-                (
+                
                     "**Observations:** "
                     f"{int(report.get('observation_count', 0)):,}"
-                )
+                
             )
 
             st.write(
-                (
+                
                     "**Transaction cost assumption:** "
                     f"{float(report.get('transaction_cost_bps', 0.0)):.1f} bps"
-                )
+                
             )
 
     if monthly is not None:
@@ -3030,10 +3029,10 @@ def methodology_page(
 
     else:
         st.caption(
-            (
+            
                 f"{docs[str(choice)]} "
                 "not found."
-            )
+            
         )
 
 
@@ -3097,10 +3096,10 @@ def sidebar_controls() -> dict[str, object]:
 
     if market_date:
         st.sidebar.caption(
-            (
+            
                 "Market data · "
                 f"**{market_date}**"
-            )
+            
         )
 
     if (
@@ -3108,12 +3107,12 @@ def sidebar_controls() -> dict[str, object]:
         == DEMO_DATA
     ):
         st.sidebar.info(
-            (
+            
                 "This public deployment uses a "
                 "frozen demonstration snapshot. "
                 "Run Atlas locally for current "
                 "pipeline outputs."
-            )
+            
         )
 
     st.sidebar.caption(

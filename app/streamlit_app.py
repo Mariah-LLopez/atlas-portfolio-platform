@@ -474,26 +474,17 @@ def page_header(
         )
     )
 
+    html = (
+        '<div class="atlas-hero">'
+        f'<div class="atlas-eyebrow">{eyebrow}</div>'
+        f'<div class="atlas-title">{title}</div>'
+        f'<div class="atlas-subtitle">{subtitle}</div>'
+        f"<div>{chip_html}</div>"
+        "</div>"
+    )
+
     st.markdown(
-        f"""
-        <div class="atlas-hero">
-            <div class="atlas-eyebrow">
-                {eyebrow}
-            </div>
-
-            <div class="atlas-title">
-                {title}
-            </div>
-
-            <div class="atlas-subtitle">
-                {subtitle}
-            </div>
-
-            <div>
-                {chip_html}
-            </div>
-        </div>
-        """,
+        html,
         unsafe_allow_html=True,
     )
 

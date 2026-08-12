@@ -299,22 +299,71 @@ def signals_page() -> None:
             )
         )
 
-        st.bar_chart(
+        momentum_chart = (
             latest_momentum
+            .rename("Momentum Z-Score")
+            .rename_axis("Asset")
+            .reset_index()
+        )
+
+        st.bar_chart(
+            momentum_chart,
+            x="Asset",
+            y="Momentum Z-Score",
         )
 
         st.dataframe(
-            latest_momentum
-            .rename(
-                "Momentum Z-Score"
-            )
-            .to_frame()
-            .round(3),
+            momentum_chart,
             use_container_width=True,
+            hide_index=True,
         )
+
     else:
         missing_file(
             "momentum_zscore.parquet"
+        )
+
+    if volatility is not None:
+        st.subheader(
+            "Latest Annualized Volatility"
+        )
+
+        latest_vol = (
+            volatility
+            .dropna(how="all")
+            .iloc[-1]
+            .sort_values(
+                ascending=False
+            )
+        )
+
+        volatility_chart = (
+            (
+                latest_vol
+                * 100
+            )
+            .rename(
+                "Annualized Volatility (%)"
+            )
+            .rename_axis("Asset")
+            .reset_index()
+        )
+
+        st.bar_chart(
+            volatility_chart,
+            x="Asset",
+            y="Annualized Volatility (%)",
+        )
+
+        st.dataframe(
+            volatility_chart,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    else:
+        missing_file(
+            "volatility.parquet"
         )
 
     if volatility is not None:

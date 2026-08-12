@@ -8,7 +8,6 @@ import streamlit as st
 
 from atlas.config import load_yaml
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATA = PROJECT_ROOT / "data" / "processed"
 DOCS = PROJECT_ROOT / "docs"
@@ -216,18 +215,17 @@ def overview_page() -> None:
     st.divider()
     left, right = st.columns([1.15, 1])
 
-    with left:
-        with st.container(border=True):
-            section_header("Current Target Allocation", "Latest constrained multi-asset target.")
-            if weights is not None and "weight" in weights.columns:
-                target = weights["weight"].astype(float).sort_values(ascending=False)
-                single_series_bar(target, 100.0)
-                st.dataframe(
-                    target.mul(100.0).rename("Target Weight (%)").to_frame().round(2),
-                    use_container_width=True,
-                )
-            else:
-                missing_file("optimized_weights.parquet", "python scripts/run_stage1.py")
+    with left, st.container(border=True):
+        section_header("Current Target Allocation", "Latest constrained multi-asset target.")
+        if weights is not None and "weight" in weights.columns:
+            target = weights["weight"].astype(float).sort_values(ascending=False)
+            single_series_bar(target, 100.0)
+            st.dataframe(
+                target.mul(100.0).rename("Target Weight (%)").to_frame().round(2),
+                use_container_width=True,
+            )
+        else:
+            missing_file("optimized_weights.parquet", "python scripts/run_stage1.py")
 
     with right:
         with st.container(border=True):
@@ -263,28 +261,26 @@ def overview_page() -> None:
             else:
                 st.caption("Run attribution to populate this panel.")
 
-    with b2:
-        with st.container(border=True):
-            section_header("Portfolio Turnover", "Trading intensity after turnover controls.")
-            if turnover is not None and "turnover" in turnover.columns:
-                series = turnover["turnover"].astype(float)
-                st.metric("Average Monthly", pct(float(series.mean())))
-                st.caption(f"Maximum observed: {pct(float(series.max()))}")
-            else:
-                st.caption("Run the backtest to populate this panel.")
+    with b2, st.container(border=True):
+        section_header("Portfolio Turnover", "Trading intensity after turnover controls.")
+        if turnover is not None and "turnover" in turnover.columns:
+            series = turnover["turnover"].astype(float)
+            st.metric("Average Monthly", pct(float(series.mean())))
+            st.caption(f"Maximum observed: {pct(float(series.max()))}")
+        else:
+            st.caption("Run the backtest to populate this panel.")
 
-    with b3:
-        with st.container(border=True):
-            section_header("Latest Rebalance", "Operational order summary.")
-            if rebalance is not None and "action" in rebalance.columns:
-                actions = rebalance["action"].astype(str)
-                buys = int((actions == "BUY").sum())
-                sells = int((actions == "SELL").sum())
-                holds = int((actions == "HOLD").sum())
-                st.metric("Executable Actions", str(buys + sells))
-                st.caption(f"{buys} BUY · {sells} SELL · {holds} HOLD")
-            else:
-                st.caption("Generate rebalance orders to populate this panel.")
+    with b3, st.container(border=True):
+        section_header("Latest Rebalance", "Operational order summary.")
+        if rebalance is not None and "action" in rebalance.columns:
+            actions = rebalance["action"].astype(str)
+            buys = int((actions == "BUY").sum())
+            sells = int((actions == "SELL").sum())
+            holds = int((actions == "HOLD").sum())
+            st.metric("Executable Actions", str(buys + sells))
+            st.caption(f"{buys} BUY · {sells} SELL · {holds} HOLD")
+        else:
+            st.caption("Generate rebalance orders to populate this panel.")
 
     if weights is not None and "weight" in weights.columns:
         target = weights["weight"].astype(float)
@@ -518,15 +514,14 @@ def backtest_page() -> None:
                         }
             st.dataframe(pd.DataFrame(rows).T, use_container_width=True)
 
-    with right:
-        with st.container(border=True):
-            section_header("Turnover", "Historical trading intensity after the hard turnover control.")
-            if turnover is not None and "turnover" in turnover.columns:
-                series = turnover["turnover"].astype(float)
-                timeseries_chart(series.mul(100.0).rename("Turnover (%)").to_frame())
-                t1, t2 = st.columns(2)
-                t1.metric("Average", pct(float(series.mean())))
-                t2.metric("Maximum", pct(float(series.max())))
+    with right, st.container(border=True):
+        section_header("Turnover", "Historical trading intensity after the hard turnover control.")
+        if turnover is not None and "turnover" in turnover.columns:
+            series = turnover["turnover"].astype(float)
+            timeseries_chart(series.mul(100.0).rename("Turnover (%)").to_frame())
+            t1, t2 = st.columns(2)
+            t1.metric("Average", pct(float(series.mean())))
+            t2.metric("Maximum", pct(float(series.max())))
 
     if historical_weights is not None:
         with st.expander("Recent historical target weights"):

@@ -129,3 +129,44 @@ def test_optimizer_rejects_invalid_risk_aversion(
             max_weights,
             risk_aversion=0,
         )
+
+def test_turnover_never_exceeds_policy_limit(
+    optimizer_inputs,
+):
+    expected_returns, covariance, max_weights = (
+        optimizer_inputs
+    )
+
+    previous_weights = pd.Series(
+        {
+            "SPY": 0.20,
+            "VXUS": 0.20,
+            "IEF": 0.20,
+            "GLD": 0.20,
+            "BIL": 0.20,
+        }
+    )
+
+    policy_limit = 0.20
+
+    weights = optimize_portfolio(
+        expected_returns,
+        covariance,
+        max_weights,
+        previous_weights=previous_weights,
+        max_turnover=policy_limit,
+        turnover_penalty=0.002,
+    )
+
+    realized_turnover = (
+        weights
+        .sub(previous_weights)
+        .abs()
+        .sum()
+        / 2.0
+    )
+
+    assert (
+        realized_turnover
+        <= policy_limit
+    )

@@ -8,7 +8,6 @@ import streamlit as st
 
 from atlas.config import load_yaml
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATA = PROJECT_ROOT / "data" / "processed"
 DOCS = PROJECT_ROOT / "docs"

@@ -6,7 +6,6 @@ import pandas as pd
 
 from atlas.portfolio.rebalance import build_rebalance_orders
 
-
 DATA = Path("data/processed")
 SAMPLE = Path("data/sample")
 

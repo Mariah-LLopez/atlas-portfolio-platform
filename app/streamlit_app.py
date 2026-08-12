@@ -6,7 +6,6 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATA = PROJECT_ROOT / "data" / "processed"
 
@@ -191,16 +190,16 @@ def overview_page() -> None:
             ),
         )
 
+        sharpe_ratio_value = float(
+            atlas.get(
+                "sharpe_ratio",
+                0.0,
+            )
+        )
+
         col3.metric(
             "Sharpe Ratio",
-            (
-                f"{float(
-                    atlas.get(
-                        'sharpe_ratio',
-                        0.0,
-                    )
-                ):.2f}"
-            ),
+            f"{sharpe_ratio_value:.2f}",
         )
 
         col4.metric(
@@ -830,8 +829,10 @@ def backtest_page() -> None:
     # ------------------------------------------------------------------
     # Turnover
     # ------------------------------------------------------------------
-    if turnover is not None:
-        if "turnover" in turnover.columns:
+    if (
+            turnover is not None
+            and "turnover" in turnover.columns
+        ):
             st.subheader(
                 "Historical Turnover"
             )

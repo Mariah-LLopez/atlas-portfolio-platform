@@ -18,7 +18,6 @@ from atlas.monitoring.health import (
     overall_status,
 )
 
-
 DATA = Path("data/processed")
 
 

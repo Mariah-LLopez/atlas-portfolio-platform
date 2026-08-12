@@ -1,0 +1,31 @@
+{
+  "atlas": {
+    "annualized_return": 0.08412653546534465,
+    "annualized_volatility": 0.08947119810182987,
+    "sharpe_ratio": 0.9402638754160608,
+    "max_drawdown": -0.20690082311793312,
+    "average_monthly_turnover": 0.0605219453256913,
+    "total_turnover": 7.504721220385721,
+    "maximum_monthly_turnover": 0.19995277804488643
+  },
+  "equal_weight": {
+    "annualized_return": 0.07573281232595508,
+    "annualized_volatility": 0.08773998330140476,
+    "sharpe_ratio": 0.8631505213056333,
+    "max_drawdown": -0.19156571092110086
+  },
+  "sixty_forty": {
+    "annualized_return": 0.09852182002165955,
+    "annualized_volatility": 0.1074657343290504,
+    "sharpe_ratio": 0.9167742689031891,
+    "max_drawdown": -0.21017480353315232
+  },
+  "metadata": {
+    "backtest_start": "2016-06-01",
+    "backtest_end": "2026-08-11",
+    "rebalance_count": 124,
+    "transaction_cost_bps": 5.0,
+    "max_turnover_per_rebalance": 0.2,
+    "turnover_penalty": 0.002
+  }
+}

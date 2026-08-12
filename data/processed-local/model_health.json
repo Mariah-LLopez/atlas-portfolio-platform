@@ -1,0 +1,85 @@
+{
+  "generated_at_utc": "2026-08-12T00:49:15.857815+00:00",
+  "overall_status": "HEALTHY",
+  "check_count": 15,
+  "passed_checks": 15,
+  "failed_checks": 0,
+  "warning_checks": 0,
+  "checks": [
+    {
+      "name": "market_prices_output",
+      "status": "PASS",
+      "detail": "Found data\\processed\\market_prices.parquet"
+    },
+    {
+      "name": "macro_regimes_output",
+      "status": "PASS",
+      "detail": "Found data\\processed\\macro_regimes.parquet"
+    },
+    {
+      "name": "cma_output",
+      "status": "PASS",
+      "detail": "Found data\\processed\\cma_regime_adjusted.parquet"
+    },
+    {
+      "name": "optimized_weights_output",
+      "status": "PASS",
+      "detail": "Found data\\processed\\optimized_weights.parquet"
+    },
+    {
+      "name": "backtest_output",
+      "status": "PASS",
+      "detail": "Found data\\processed\\backtest_returns.parquet"
+    },
+    {
+      "name": "turnover_output",
+      "status": "PASS",
+      "detail": "Found data\\processed\\backtest_turnover.parquet"
+    },
+    {
+      "name": "attribution_output",
+      "status": "PASS",
+      "detail": "Found data\\processed\\attribution_summary.parquet"
+    },
+    {
+      "name": "attribution_report_output",
+      "status": "PASS",
+      "detail": "Found data\\processed\\attribution_report.json"
+    },
+    {
+      "name": "data_quality_output",
+      "status": "PASS",
+      "detail": "Found data\\processed\\data_quality_report.json"
+    },
+    {
+      "name": "market_data_quality",
+      "status": "PASS",
+      "detail": "All configured market-data quality checks passed."
+    },
+    {
+      "name": "portfolio_weights",
+      "status": "PASS",
+      "detail": "sum=1.00000000, negative_weights=0"
+    },
+    {
+      "name": "equity_limit",
+      "status": "PASS",
+      "detail": "equity=50.0000%, limit=60.0000%"
+    },
+    {
+      "name": "cash_floor",
+      "status": "PASS",
+      "detail": "cash=30.0000%, minimum=2.0000%"
+    },
+    {
+      "name": "turnover_limit",
+      "status": "PASS",
+      "detail": "max=19.9953%, limit=20.0000%, breaches=0"
+    },
+    {
+      "name": "attribution_reconciliation",
+      "status": "PASS",
+      "detail": "error=0.000000000000, tolerance=0.000000010000"
+    }
+  ]
+}
